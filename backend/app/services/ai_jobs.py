@@ -62,11 +62,18 @@ class InvalidJobTransitionError(Exception):
 
 
 def fingerprint_key(fingerprint: dict | str) -> str:
-    """composite fingerprint dict → canonical 비교/저장 문자열."""
+    """composite fingerprint dict → canonical 비교/저장 문자열.
+
+    `version`은 비교에서 제외한다 — Drive가 내용 변경 없이 자체 인덱싱으로
+    version을 올리는 churn이 있어 불필요한 stale 재분석을 유발한다 (2026-07-09
+    실검증 배치에서 관측). mirror의 fingerprint dict에는 version이 보관되지만
+    stale 판정 축은 file_id/modified_time/name/mime(/content)이다 (DEC-023).
+    """
     if isinstance(fingerprint, str):
         return fingerprint
+    comparable = {k: v for k, v in fingerprint.items() if k != "version"}
     return json.dumps(
-        fingerprint, sort_keys=True, ensure_ascii=False, separators=(",", ":")
+        comparable, sort_keys=True, ensure_ascii=False, separators=(",", ":")
     )
 
 
@@ -165,6 +172,8 @@ class AiJobsService:
         SPEC-005 candidate reanalyze CTA가 이 지점으로 위임된다.
         - 진행 중 job이 있으면 그대로 반환 (멱등).
         - failed/timeout/validation_failed job이 있으면 queued로 복귀 (수동 재시도).
+        - 재시도 소진(attempt >= max) job은 terminal로 취급 — 새 manual job을 만든다
+          (실검증 이슈: 소진 상태에서 수동 재분석이 409로 막히던 버그 수정).
         - terminal(candidate_saved/stale)뿐이면 새 job을 만든다.
         """
         from app.services.documents import DocumentNotFoundError
@@ -185,8 +194,9 @@ class AiJobsService:
         retryable = await self._jobs.find_retryable_for_fingerprint(
             document_id=document_id, fingerprint=key
         )
-        if retryable is not None:
+        if retryable is not None and retryable.attempt_count < retryable.max_attempts:
             return await self.retry(retryable)
+        # 소진된 retryable은 아래 manual 신규 job 생성으로 진행한다.
 
         row, _ = await self._enqueue(
             job_type="classification",

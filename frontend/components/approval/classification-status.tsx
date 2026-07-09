@@ -20,7 +20,8 @@ import {
 } from "@/lib/api/classification";
 
 const POLL_INTERVAL_MS = 10_000;
-const DOCUMENT_LIMIT = 10;
+// 전체 문서 표시 (BE limit 상한 200 — 문서 수가 그 이상이면 집계 API 필요)
+const DOCUMENT_LIMIT = 200;
 
 const STATUS_BADGE_CLASS: Record<ClassificationJobStatus, string> = {
   queued: "bg-muted text-muted-foreground",
@@ -117,7 +118,7 @@ export function ClassificationStatusPanel() {
         <h2 className="text-sm font-semibold">AI 분석 상태</h2>
         <div className="flex items-center gap-2">
           <span className="text-xs text-muted-foreground">
-            10초마다 자동 갱신 · 최근 {rows.length}개 문서
+            10초마다 자동 갱신 · 전체 {rows.length}개 문서
           </span>
           <Button
             size="sm"

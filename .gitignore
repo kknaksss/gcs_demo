@@ -16,3 +16,6 @@ node_modules/
 # misc
 .DS_Store
 backend/app/seeds/data/mediness_users.json
+
+# 로컬 ai_worker 실행용 복사본 — SoT는 레포 루트 context/ (claude 샌드박스가 외부 symlink 차단)
+ai_worker/workspace/context/

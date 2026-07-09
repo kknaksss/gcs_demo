@@ -59,3 +59,37 @@ frontend 단독 개발:
 ```bash
 cd frontend && npm install && npm run dev
 ```
+
+## 로컬 실행 절차 (docker 없이, 2026-07-09 실검증 방식)
+
+```bash
+# 0) 인프라만 docker (다른 스택과 포트 충돌 시 compose 포트 조정)
+docker compose -f docker-compose.local.yml up -d db redis
+
+# 1) env 로드 — .env.local은 레포 루트라 backend cwd에서는 자동 로드되지 않는다.
+#    로컬 직접 실행 시 반드시 shell에서 source로 주입한다.
+set -a && source .env.local && set +a
+
+# 2) backend API + product worker (예: 포트 충돌 회피용 18000)
+cd backend
+.venv/bin/uvicorn app.main:app --port 18000 &
+.venv/bin/python -m app.workers.main &          # Drive 폴링 60s + AI job 5s
+
+# 3) ai_worker — 맥에서는 네이티브 claude를 그대로 사용 (docker/claude-tools 불필요)
+cd ../ai_worker && ../backend/.venv/bin/python run.py &
+
+# 4) frontend (API 포트에 맞춰)
+cd ../frontend && NEXT_PUBLIC_API_BASE_URL=http://localhost:18000 npm run dev -- --port 13000
+# ⚠️ backend CORS_ORIGINS에 FE 포트가 포함돼야 한다 (.env.local)
+```
+
+로컬 실행 주의사항:
+
+- **ai_worker workspace 자산은 symlink 금지** — claude 샌드박스가 workspace 외부를 가리키는
+  symlink 읽기를 차단해 분류가 산문 응답으로 실패한다(2026-07-09 실검증). 로컬에서는
+  `context/classification-guide.md`를 `ai_worker/workspace/context/`로 **복사**해서 쓴다
+  (gitignore 대상 — SoT는 레포 루트 `context/`, docker 빌드는 COPY로 자동 처리).
+- AI job 소비는 **의도적으로 순차 1건 처리**다(로컬 LLM 과부하 방지 — 사용자 확정).
+  대량 업로드 시 문서당 ~2분씩 순차 소화되며 유실 없이 밀린다.
+- webhook 없이 폴링만으로 동작한다. 실시간이 필요하면 tunnel/홈서버 프록시로
+  `GOOGLE_DRIVE_WEBHOOK_URL`을 채우고 admin 화면에서 watch 갱신.

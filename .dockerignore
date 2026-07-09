@@ -8,3 +8,6 @@ frontend/
 .env
 .env.local
 .env.prod
+
+# 로컬 ai_worker 실행용 symlink — 이미지 빌드는 COPY context/ 로 대체되므로 제외
+ai_worker/workspace/context

@@ -299,7 +299,7 @@ async def test_worker_stale_before_submit_skips_and_reenqueues(
     doc = await _make_document(db_session, drive_file_id="f-cls-stale1")
     job = await _enqueue(db_session, doc)
 
-    doc.drive_fingerprint = {**doc.drive_fingerprint, "version": "2"}
+    doc.drive_fingerprint = {**doc.drive_fingerprint, "drive_modified_time": "2026-07-09T09:00:00+00:00"}
     await db_session.commit()
 
     client = succeeded_client(VALID_OUTPUT)
@@ -334,7 +334,7 @@ async def test_worker_stale_at_save_discards_candidate(
         # task 실행 중 Drive 변경 시뮬레이션 — 저장 직전 fingerprint 상이.
         async with _Session() as session:
             row = await session.get(Document, doc.id)
-            row.drive_fingerprint = {**row.drive_fingerprint, "version": "7"}
+            row.drive_fingerprint = {**row.drive_fingerprint, "drive_modified_time": "2026-07-09T09:30:00+00:00"}
             await session.commit()
 
     client = succeeded_client(VALID_OUTPUT, on_wait=mutate_fingerprint)

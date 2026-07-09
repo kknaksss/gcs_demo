@@ -76,8 +76,16 @@ def build_fingerprint(
 
 
 def fingerprint_changed(current: dict | None, new: dict) -> bool:
-    """stale 판정 비교 — 본문을 읽은 경우 content_fingerprint도 포함된 dict 동등 비교."""
-    return current != new
+    """stale 판정 비교 — 본문을 읽은 경우 content_fingerprint도 포함된 dict 동등 비교.
+
+    `version`은 비교에서 제외한다 (Drive 자체 version bump churn — fingerprint_key와 동일 규칙).
+    """
+    def _comparable(fp: dict | None) -> dict | None:
+        if fp is None:
+            return None
+        return {k: v for k, v in fp.items() if k != "version"}
+
+    return _comparable(current) != _comparable(new)
 
 
 class DocumentsService:

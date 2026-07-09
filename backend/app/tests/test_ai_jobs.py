@@ -106,7 +106,7 @@ async def test_enqueue_different_fingerprint_creates_new_job(
     service = AiJobsService(db_session)
     await service.enqueue_classification(doc.id, doc.drive_fingerprint)
     await service.enqueue_classification(
-        doc.id, {**doc.drive_fingerprint, "version": "2"}
+        doc.id, {**doc.drive_fingerprint, "drive_modified_time": "2026-07-09T09:00:00+00:00"}
     )
     assert len(await _jobs(db_session)) == 2
 
@@ -310,7 +310,7 @@ async def test_mark_stale_reenqueues_new_job(db_session: AsyncSession) -> None:
     service = AiJobsService(db_session)
     job, _ = await service.enqueue_classification(doc.id, doc.drive_fingerprint)
 
-    new_fp = {**doc.drive_fingerprint, "version": "9"}
+    new_fp = {**doc.drive_fingerprint, "drive_modified_time": "2026-07-09T09:30:00+00:00"}
     doc.drive_fingerprint = new_fp
     await db_session.flush()
 
@@ -369,3 +369,52 @@ async def test_manual_reanalysis_creates_new_job_after_terminal(
     assert manual.id != job.id
     assert manual.status == "queued"
     assert manual.idempotency_key.startswith("manual-")
+
+
+async def test_manual_reanalysis_after_retry_exhausted_creates_new_job(
+    db_session: AsyncSession,
+) -> None:
+    """재시도 소진(validation_failed 3/3)된 job은 terminal 취급 — 수동 재분석이
+    409가 아니라 새 manual job을 만든다 (2026-07-09 실검증 버그 회귀 테스트)."""
+    doc = await _make_document(db_session)
+    service = AiJobsService(db_session)
+    job, _ = await service.enqueue_classification(doc.id, doc.drive_fingerprint)
+
+    while True:
+        await service.mark_running(job, provider="claude", model="m")
+        await service.mark_succeeded(job)
+        await service.mark_validation_failed(job, message="no JSON object in result")
+        if job.status == "validation_failed":  # 자동 재큐 한도 소진
+            break
+
+    assert job.status == "validation_failed"
+    assert job.attempt_count == job.max_attempts
+
+    manual = await service.enqueue_reanalysis(doc.id)
+    assert manual.id != job.id
+    assert manual.status == "queued"
+    assert manual.idempotency_key.startswith("manual-")
+
+
+def test_fingerprint_key_ignores_drive_version_churn() -> None:
+    """Drive 자체 version bump(내용 무변경)는 stale을 유발하지 않는다."""
+    base = {
+        "drive_file_id": "f1",
+        "drive_modified_time": "2026-07-09T00:00:00+00:00",
+        "drive_name": "a.md",
+        "mime_type": "text/markdown",
+        "version": "1",
+    }
+    bumped = dict(base, version="7")
+    assert fingerprint_key(base) == fingerprint_key(bumped)
+
+    changed = dict(base, drive_modified_time="2026-07-09T01:00:00+00:00")
+    assert fingerprint_key(base) != fingerprint_key(changed)
+
+
+def test_fingerprint_changed_ignores_version_only_diff() -> None:
+    from app.services.documents import fingerprint_changed
+
+    base = {"drive_file_id": "f1", "drive_name": "a", "mime_type": "m", "version": "1"}
+    assert fingerprint_changed(base, dict(base, version="9")) is False
+    assert fingerprint_changed(base, dict(base, drive_name="b")) is True
