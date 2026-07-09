@@ -1,0 +1,68 @@
+[
+  {
+    "source_user_id": "00000000-0000-4000-8000-000000000001",
+    "email": "admin@example.com",
+    "name": "샘플 관리자",
+    "role": "admin",
+    "position": "leader",
+    "department": "ax",
+    "active": true,
+    "employment_type": "full_time",
+    "resigned_at": null
+  },
+  {
+    "source_user_id": "00000000-0000-4000-8000-000000000002",
+    "email": "fe.member@example.com",
+    "name": "샘플 프론트",
+    "role": "member",
+    "position": "staff",
+    "department": "fe",
+    "active": true,
+    "employment_type": "full_time",
+    "resigned_at": null
+  },
+  {
+    "source_user_id": "00000000-0000-4000-8000-000000000003",
+    "email": "hr.member@example.com",
+    "name": "샘플 인사",
+    "role": "hr",
+    "position": "staff",
+    "department": "hr",
+    "active": true,
+    "employment_type": "full_time",
+    "resigned_at": null
+  },
+  {
+    "source_user_id": "00000000-0000-4000-8000-000000000004",
+    "email": "unmapped@example.com",
+    "name": "샘플 미매핑",
+    "role": "member",
+    "position": "staff",
+    "department": null,
+    "active": true,
+    "employment_type": null,
+    "resigned_at": null
+  },
+  {
+    "source_user_id": "00000000-0000-4000-8000-000000000005",
+    "email": "inactive@example.com",
+    "name": "샘플 비활성",
+    "role": "member",
+    "position": "staff",
+    "department": "be",
+    "active": false,
+    "employment_type": "full_time",
+    "resigned_at": null
+  },
+  {
+    "source_user_id": "00000000-0000-4000-8000-000000000006",
+    "email": "resigned@example.com",
+    "name": "샘플 퇴사",
+    "role": "member",
+    "position": "staff",
+    "department": "qa",
+    "active": true,
+    "employment_type": "full_time",
+    "resigned_at": "2026-06-30T00:00:00+09:00"
+  }
+]

@@ -1,0 +1,78 @@
+# local: API / worker / PostgreSQL / Redis / frontend (ARCH-001 §10)
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: gcs
+      POSTGRES_PASSWORD: gcs
+      POSTGRES_DB: gcs_demo
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    env_file: .env.local
+    environment:
+      DATABASE_URL: postgresql+asyncpg://gcs:gcs@db:5432/gcs_demo
+      REDIS_URL: redis://redis:6379/0
+    ports:
+      - "8000:8000"
+    depends_on:
+      - db
+      - redis
+
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile.worker
+    env_file: .env.local
+    environment:
+      DATABASE_URL: postgresql+asyncpg://gcs:gcs@db:5432/gcs_demo
+      REDIS_URL: redis://redis:6379/0
+    depends_on:
+      - db
+      - redis
+
+  ai-worker:
+    build:
+      context: .                     # 루트 context/ 를 이미지에 굽기 위해 레포 루트 사용
+      dockerfile: ai_worker/Dockerfile
+    env_file: .env.local
+    environment:
+      # mac 로컬: darwin claude는 linux 컨테이너서 못 돌므로, linux/arm64 네이티브
+      # claude 도구 세트(.claude-tools)를 마운트해 PATH로 물린다 (ax-graph 방식 재사용).
+      # 배포용 compose는 호스트 네이티브 claude 마운트 방식.
+      PATH: /claude-tools/node/bin:/claude-tools/node_modules/.bin:/usr/local/bin:/usr/bin:/bin
+      OPEN_KKNAKS_BROKER_URL: redis://redis:6379/0
+      # claude 실행 프로젝트 = 이미지에 박힌 분류 workspace(진입 문서 + context/
+      # classification-guide.md). env_file 값보다 우선하도록 여기서 권위있게 고정.
+      WORK_DIR: /app/workspace
+    volumes:
+      - ${CLAUDE_TOOLS_HOST_PATH:-/Users/kknaks/.cache/axkg-live/.claude-tools}:/claude-tools:ro
+    depends_on:
+      - redis
+
+  frontend:
+    image: node:22-alpine
+    working_dir: /app
+    command: sh -c "npm install && npm run dev"
+    environment:
+      NEXT_PUBLIC_API_BASE_URL: http://localhost:8000
+    volumes:
+      - ./frontend:/app
+    ports:
+      - "3000:3000"
+    depends_on:
+      - api
+
+volumes:
+  pgdata:

@@ -1,0 +1,18 @@
+# env — .env.example만 commit한다 (ARCH-001 §10)
+.env.local
+.env.prod
+.env
+
+# python
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+.ruff_cache/
+
+# node (frontend/ 내부는 frontend/.gitignore가 관리)
+node_modules/
+
+# misc
+.DS_Store
+backend/app/seeds/data/mediness_users.json

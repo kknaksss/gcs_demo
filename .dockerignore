@@ -1,0 +1,10 @@
+# 루트 build context 최적화 — API/worker/ai-worker 이미지는 frontend가 필요 없다
+frontend/
+.git/
+**/__pycache__/
+**/.venv/
+**/.pytest_cache/
+**/.ruff_cache/
+.env
+.env.local
+.env.prod

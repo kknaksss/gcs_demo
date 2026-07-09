@@ -1,0 +1,36 @@
+# prod: API / worker / frontend 연결 구조 (ARCH-001 §10)
+# secret은 .env.prod 주입으로 받는다. 평문 secret을 repo에 남기지 않는다.
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    env_file: .env.prod
+    ports:
+      - "8000:8000"
+    restart: unless-stopped
+
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile.worker
+    env_file: .env.prod
+    restart: unless-stopped
+
+  ai-worker:
+    build:
+      context: .
+      dockerfile: ai_worker/Dockerfile
+    env_file: .env.prod
+    # 서버 배포는 호스트 네이티브 claude를 마운트한다. 경로는 배포 환경에서 확정.
+    # volumes:
+    #   - /path/to/host/claude-tools:/claude-tools:ro
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+    env_file: .env.prod
+    ports:
+      - "3000:3000"
+    restart: unless-stopped
